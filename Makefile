@@ -1,6 +1,6 @@
 # DeerFlow - Unified Development Environment
 
-.PHONY: help config config-upgrade check install setup doctor dev dev-daemon start start-daemon stop up down clean docker-init docker-start docker-stop docker-logs docker-logs-frontend docker-logs-gateway
+.PHONY: help config config-upgrade check install setup doctor dev dev-daemon start start-daemon stop up down clean docker-init docker-start docker-stop docker-logs docker-logs-gateway
 
 BASH ?= bash
 BACKEND_UV_RUN = cd backend && uv run
@@ -23,25 +23,24 @@ help:
 	@echo "  make config          - Generate local config files (aborts if config already exists)"
 	@echo "  make config-upgrade  - Merge new fields from config.example.yaml into config.yaml"
 	@echo "  make check           - Check if all required tools are installed"
-	@echo "  make install         - Install all dependencies (frontend + backend + pre-commit hooks)"
+	@echo "  make install         - Install backend dependencies (uv sync + pre-commit hooks)"
 	@echo "  make setup-sandbox   - Pre-pull sandbox container image (recommended)"
-	@echo "  make dev             - Start all services in development mode (with hot-reloading)"
-	@echo "  make dev-daemon      - Start dev services in background (daemon mode)"
-	@echo "  make start           - Start all services in production mode (optimized, no hot-reloading)"
-	@echo "  make start-daemon    - Start prod services in background (daemon mode)"
-	@echo "  make stop            - Stop all running services"
-	@echo "  make clean           - Clean up processes and temporary files"
+	@echo "  make dev             - Start backend services in development mode (with hot-reloading)"
+	@echo "  make dev-daemon      - Start backend services in background (daemon mode)"
+	@echo "  make start           - Start backend services in production mode (optimized, no hot-reloading)"
+	@echo "  make start-daemon    - Start backend services in background (daemon mode)"
+	@echo "  make stop            - Stop backend services"
+	@echo "  make clean           - Clean up backend processes and temporary files"
 	@echo ""
-	@echo "Docker Production Commands:"
-	@echo "  make up              - Build and start production Docker services (localhost:2026)"
-	@echo "  make down            - Stop and remove production Docker containers"
+	@echo "Docker Production Commands (container stack via deploy.sh):"
+	@echo "  make up              - Build and start production Docker stack (localhost:2026)"
+	@echo "  make down            - Stop and remove production Docker stack"
 	@echo ""
-	@echo "Docker Development Commands:"
+	@echo "Docker Development Commands (container stack via docker.sh):"
 	@echo "  make docker-init     - Pull the sandbox image"
-	@echo "  make docker-start    - Start Docker services (mode-aware from config.yaml, localhost:2026)"
-	@echo "  make docker-stop     - Stop Docker development services"
-	@echo "  make docker-logs     - View Docker development logs"
-	@echo "  make docker-logs-frontend - View Docker frontend logs"
+	@echo "  make docker-start    - Start Docker container stack (mode-aware from config.yaml, localhost:2026)"
+	@echo "  make docker-stop     - Stop Docker container stack"
+	@echo "  make docker-logs     - View Docker container logs"
 	@echo "  make docker-logs-gateway - View Docker gateway logs"
 
 ## Setup & Diagnosis
@@ -61,15 +60,13 @@ config-upgrade:
 check:
 	@$(PYTHON) ./scripts/check.py
 
-# Install all dependencies
+# Install backend dependencies
 install:
 	@echo "Installing backend dependencies..."
 	@cd backend && uv sync
-	@echo "Installing frontend dependencies..."
-	@cd frontend && pnpm install
 	@echo "Installing pre-commit hooks..."
 	@$(BACKEND_UV_RUN) --with pre-commit pre-commit install
-	@echo "✓ All dependencies installed"
+	@echo "✓ Backend dependencies installed"
 	@echo ""
 	@echo "=========================================="
 	@echo "  Optional: Pre-pull Sandbox Image"
@@ -112,31 +109,31 @@ setup-sandbox:
 		exit 1; \
 	fi
 
-# Start all services in development mode (with hot-reloading)
+# Start backend services in development mode (with hot-reloading)
 dev:
 	@$(PYTHON) ./scripts/check.py
 	@$(RUN_WITH_GIT_BASH) ./scripts/serve.sh --dev
 
-# Start all services in production mode (with optimizations)
+# Start backend services in production mode (with optimizations)
 start:
 	@$(PYTHON) ./scripts/check.py
 	@$(RUN_WITH_GIT_BASH) ./scripts/serve.sh --prod
 
-# Start all services in daemon mode (background)
+# Start backend services in daemon mode (background)
 dev-daemon:
 	@$(PYTHON) ./scripts/check.py
 	@$(RUN_WITH_GIT_BASH) ./scripts/serve.sh --dev --daemon
 
-# Start prod services in daemon mode (background)
+# Start backend services in daemon mode (background, production)
 start-daemon:
 	@$(PYTHON) ./scripts/check.py
 	@$(RUN_WITH_GIT_BASH) ./scripts/serve.sh --prod --daemon
 
-# Stop all services
+# Stop backend services
 stop:
 	@$(RUN_WITH_GIT_BASH) ./scripts/serve.sh --stop
 
-# Clean up
+# Clean up backend runtime artifacts
 clean: stop
 	@echo "Cleaning up..."
 	@-rm -rf backend/.deer-flow 2>/dev/null || true
@@ -148,25 +145,23 @@ clean: stop
 # Docker Development Commands
 # ==========================================
 
-# Initialize Docker containers and install dependencies
+# Initialize Docker container stack and install dependencies
 docker-init:
 	@$(RUN_WITH_GIT_BASH) ./scripts/docker.sh init
 
-# Start Docker development environment
+# Start Docker container stack
 docker-start:
 	@$(RUN_WITH_GIT_BASH) ./scripts/docker.sh start
 
-# Stop Docker development environment
+# Stop Docker container stack
 docker-stop:
 	@$(RUN_WITH_GIT_BASH) ./scripts/docker.sh stop
 
-# View Docker development logs
+# View Docker container logs
 docker-logs:
 	@$(RUN_WITH_GIT_BASH) ./scripts/docker.sh logs
 
-# View Docker development logs
-docker-logs-frontend:
-	@$(RUN_WITH_GIT_BASH) ./scripts/docker.sh logs --frontend
+# View Docker gateway logs
 docker-logs-gateway:
 	@$(RUN_WITH_GIT_BASH) ./scripts/docker.sh logs --gateway
 
@@ -174,10 +169,10 @@ docker-logs-gateway:
 # Production Docker Commands
 # ==========================================
 
-# Build and start production services
+# Build and start production Docker stack
 up:
 	@$(RUN_WITH_GIT_BASH) ./scripts/deploy.sh
 
-# Stop and remove production containers
+# Stop and remove production Docker stack
 down:
 	@$(RUN_WITH_GIT_BASH) ./scripts/deploy.sh down
