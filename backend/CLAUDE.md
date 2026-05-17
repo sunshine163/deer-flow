@@ -6,14 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 DeerFlow is a LangGraph-based AI super agent system with a full-stack architecture. The backend provides a "super agent" with sandbox execution, persistent memory, subagent delegation, and extensible tool integration - all operating in per-thread isolated environments.
 
-**Architecture**:
-- **Gateway API** (port 8001): REST API plus embedded LangGraph-compatible agent runtime
-- **Frontend** (port 3000): Next.js web interface
-- **Nginx** (port 2026): Unified reverse proxy entry point
-- **Provisioner** (port 8002, optional in Docker dev): Started only when sandbox is configured for provisioner/Kubernetes mode
+**Architecture** (this fork):
+- **Gateway API** (port 8001): REST API plus embedded LangGraph-compatible agent runtime — default entry point
+- **Provisioner** (port 8002, optional in Docker): Started only when sandbox is configured for provisioner/Kubernetes mode
 
 **Runtime**:
-- `make dev`, Docker dev, and production all run the agent runtime in Gateway via `RunManager` + `run_agent()` + `StreamBridge` (`packages/harness/deerflow/runtime/`). Nginx exposes that runtime at `/api/langgraph/*` and rewrites it to Gateway's native `/api/*` routers.
+- `make dev`, Docker dev, and production all run the agent runtime in Gateway via `RunManager` + `run_agent()` + `StreamBridge` (`packages/harness/deerflow/runtime/`). Clients call `/api/langgraph/*` and other `/api/*` routes on Gateway directly (port 8001).
 
 **Project Structure**:
 ```
@@ -58,7 +56,6 @@ deer-flow/
 │   │   └── channels/          # IM platform integrations
 │   ├── tests/                 # Test suite
 │   └── docs/                  # Documentation
-├── frontend/                   # Next.js frontend application
 └── skills/                     # Agent skills directory
     ├── public/                # Public skills (committed)
     └── custom/                # Custom skills (gitignored)
@@ -77,13 +74,13 @@ When making code changes, you MUST update the relevant documentation:
 
 ## Commands
 
-**Root directory** (for full application):
+**Root directory** (Gateway launcher via bash scripts):
 ```bash
-make check      # Check system requirements
-make install    # Install all dependencies (frontend + backend)
-make dev        # Start all services (Gateway + Frontend + Nginx), with config.yaml preflight
-make start      # Start production services locally
-make stop       # Stop all services
+make check      # Check uv
+make install    # Backend uv sync + pre-commit
+make dev        # Gateway with hot-reload (port 8001)
+make start      # Gateway production mode locally
+make stop       # Stop Gateway
 ```
 
 **Backend directory** (for backend development only):
@@ -466,14 +463,14 @@ make test
 PYTHONPATH=. uv run pytest tests/test_<feature>.py -v
 ```
 
-### Running the Full Application
+### Running Gateway
 
-From the **project root** directory:
+From the **project root** (Git Bash / macOS / Linux):
 ```bash
 make dev
 ```
 
-This starts all services and makes the application available at `http://localhost:2026`.
+Gateway is available at `http://localhost:8001` (`GET /health`, `/docs`, `/api/*`).
 
 **All startup modes:**
 
@@ -487,30 +484,12 @@ This starts all services and makes the application available at `http://localhos
 | **Stop** | `./scripts/serve.sh --stop`<br/>`make stop` | `./scripts/docker.sh stop`<br/>`make docker-stop` | `./scripts/deploy.sh down`<br/>`make down` |
 | **Restart** | `./scripts/serve.sh --restart [flags]` | `./scripts/docker.sh restart` | — |
 
-**Nginx routing**:
-- `/api/langgraph/*` → Gateway embedded runtime (8001), rewritten to `/api/*`
-- `/api/*` (other) → Gateway API (8001)
-- `/` (non-API) → Frontend (3000)
+**Gateway routing** (direct, port 8001):
+- `/api/langgraph/*` — LangGraph-compatible agent runtime
+- `/api/*` — REST APIs (models, skills, memory, uploads, …)
+- `GET /health` — health check
 
-### Running Backend Services Separately
-
-From the **backend** directory:
-
-```bash
-# Gateway API
-make gateway
-```
-
-Direct access (without nginx):
-- Gateway: `http://localhost:8001`
-
-### Frontend Configuration
-
-The frontend uses environment variables to connect to backend services:
-- `NEXT_PUBLIC_LANGGRAPH_BASE_URL` - Defaults to `/api/langgraph` (through nginx)
-- `NEXT_PUBLIC_BACKEND_BASE_URL` - Defaults to empty string (through nginx)
-
-When using `make dev` from root, the frontend automatically connects through nginx.
+From the **backend** directory: `make dev` (hot-reload) or `make gateway` (no reload).
 
 ## Key Features
 

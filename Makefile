@@ -1,6 +1,6 @@
 # DeerFlow - Unified Development Environment
 
-.PHONY: help config config-upgrade check install setup doctor dev dev-daemon start start-daemon stop up down clean docker-init docker-start docker-stop docker-logs docker-logs-gateway
+.PHONY: help config config-upgrade check install setup doctor dev dev-daemon start start-daemon stop up down clean docker-init docker-start docker-stop docker-logs docker-logs-gateway docker-logs-prod
 
 BASH ?= bash
 BACKEND_UV_RUN = cd backend && uv run
@@ -41,7 +41,8 @@ help:
 	@echo "  make docker-start    - Start Docker container stack (gateway, from config.yaml)"
 	@echo "  make docker-stop     - Stop Docker container stack"
 	@echo "  make docker-logs     - View Docker container logs"
-	@echo "  make docker-logs-gateway - View Docker gateway logs"
+	@echo "  make docker-logs-gateway - View Docker dev gateway logs"
+	@echo "  make docker-logs-prod    - View Docker production gateway logs"
 
 ## Setup & Diagnosis
 setup:
@@ -164,6 +165,10 @@ docker-logs:
 # View Docker gateway logs
 docker-logs-gateway:
 	@$(RUN_WITH_GIT_BASH) ./scripts/docker.sh logs --gateway
+
+# View Docker production gateway logs
+docker-logs-prod:
+	@docker compose -p deer-flow -f docker/docker-compose.yaml logs -f gateway
 
 # ==========================================
 # Production Docker Commands

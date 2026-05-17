@@ -8,12 +8,11 @@ We offer two development environments. **Docker is recommended** for the most co
 
 ### Option 1: Docker Development (Recommended)
 
-Docker provides a consistent, isolated environment with all dependencies pre-configured. No need to install Node.js, Python, or nginx on your local machine.
+Docker provides a consistent, isolated environment with Gateway pre-configured. No need to install Python or `uv` on your host for day-to-day Docker development.
 
 #### Prerequisites
 
 - Docker Desktop or Docker Engine
-- pnpm (for caching optimization)
 
 #### Setup Steps
 
@@ -32,10 +31,8 @@ Docker provides a consistent, isolated environment with all dependencies pre-con
    make docker-init
    ```
    This will:
-   - Build Docker images
-   - Install frontend dependencies (pnpm)
-   - Install backend dependencies (uv)
-   - Share pnpm cache with host for faster builds
+   - Pull the sandbox image when container sandbox mode is configured
+   - Verify Docker is reachable
 
 3. **Start development services**:
    ```bash
@@ -43,38 +40,34 @@ Docker provides a consistent, isolated environment with all dependencies pre-con
    ```
    `make docker-start` reads `config.yaml` and starts `provisioner` only for provisioner/Kubernetes sandbox mode.
 
-   All services will start with hot-reload enabled:
-   - Frontend changes are automatically reloaded
-   - Backend changes trigger automatic restart
-   - Gateway-hosted LangGraph-compatible runtime supports hot-reload
+   Gateway starts with hot-reload in the dev compose stack.
 
-4. **Access the application**:
-   - Web Interface: http://localhost:2026
-   - API Gateway: http://localhost:2026/api/*
-   - LangGraph-compatible API: http://localhost:2026/api/langgraph/*
+4. **Access Gateway**:
+   - Health: http://localhost:8001/health
+   - OpenAPI: http://localhost:8001/docs
+   - LangGraph-compatible API: http://localhost:8001/api
 
 #### Docker Commands
 
 ```bash
 # Build the custom k3s image (with pre-cached sandbox image)
 make docker-init
-# Start Docker services (mode-aware, localhost:2026)
+# Start Docker dev Gateway (http://localhost:8001)
 make docker-start
 # Stop Docker development services
 make docker-stop
 # View Docker development logs
 make docker-logs
-# View Docker frontend logs
-make docker-logs-frontend
-# View Docker gateway logs
+# View Docker dev gateway logs
 make docker-logs-gateway
+# Production stack logs (after make up)
+make docker-logs-prod
 ```
 
-If Docker builds are slow in your network, you can override the default package registries before running `make docker-init` or `make docker-start`:
+If Docker builds are slow in your network, you can override the default package registry before running `make docker-init` or `make docker-start`:
 
 ```bash
 export UV_INDEX_URL=https://pypi.org/simple
-export NPM_REGISTRY=https://registry.npmjs.org
 ```
 
 #### Recommended host resources
@@ -129,15 +122,13 @@ If `docker ps` still reports a permission error after `usermod`, fully log out a
 Host Machine
   ↓
 Docker Compose (deer-flow-dev)
-  ├→ nginx (port 2026) ← Reverse proxy
-  ├→ web (port 3000) ← Frontend with hot-reload
-  ├→ gateway (port 8001) ← Gateway API + LangGraph-compatible runtime with hot-reload
+  ├→ gateway (port 8001) ← Gateway API + embedded agent runtime (hot-reload in dev)
   └→ provisioner (optional, port 8002) ← Started only in provisioner/K8s sandbox mode
 ```
 
 **Benefits of Docker Development**:
 - ✅ Consistent environment across different machines
-- ✅ No need to install Node.js, Python, or nginx locally
+- ✅ No need to install Python or `uv` locally for containerized dev
 - ✅ Isolated dependencies and services
 - ✅ Easy cleanup and reset
 - ✅ Hot-reload for all services
@@ -156,10 +147,10 @@ make check
 ```
 
 Required tools:
-- Node.js 22+
-- pnpm
-- uv (Python package manager)
-- nginx
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+
+On Windows, use **Git Bash** for root-level `make dev` / `make docker-start` (bash scripts).
 
 #### Setup Steps
 
@@ -170,49 +161,19 @@ Required tools:
    make install
    ```
 
-3. **Run development server** (starts all services with nginx):
+3. **Run Gateway** (either path):
    ```bash
+   cd backend && make dev
+   # or from repo root (Git Bash / macOS / Linux):
    make dev
    ```
 
-4. **Access the application**:
-   - Web Interface: http://localhost:2026
-   - All API requests are automatically proxied through nginx
+4. **Access Gateway**:
+   - Health: http://localhost:8001/health
+   - OpenAPI: http://localhost:8001/docs
+   - LangGraph-compatible API: http://localhost:8001/api
 
-#### Manual Service Control
-
-If you need to start services individually:
-
-1. **Start backend service**:
-   ```bash
-   # Terminal 1: Start Gateway API + embedded agent runtime (port 8001)
-   cd backend
-   make dev
-
-   # Terminal 2: Start Frontend (port 3000)
-   cd frontend
-   pnpm dev
-   ```
-
-2. **Start nginx**:
-   ```bash
-   make nginx
-   # or directly: nginx -c $(pwd)/docker/nginx/nginx.local.conf -g 'daemon off;'
-   ```
-
-3. **Access the application**:
-   - Web Interface: http://localhost:2026
-
-#### Nginx Configuration
-
-The nginx configuration provides:
-- Unified entry point on port 2026
-- Rewrites `/api/langgraph/*` to Gateway's LangGraph-compatible API (8001)
-- Routes other `/api/*` endpoints to Gateway API (8001)
-- Routes non-API requests to Frontend (3000)
-- Same-origin API routing; split-origin or port-forwarded browser clients should use the Gateway `GATEWAY_CORS_ORIGINS` allowlist
-- SSE/streaming support for real-time agent responses
-- Optimized timeouts for long-running operations
+Optional: put a reverse proxy in front of Gateway for TLS or path prefixes. Browser clients on a different origin should set `GATEWAY_CORS_ORIGINS`.
 
 ## Project Structure
 
@@ -224,21 +185,13 @@ deer-flow/
 ├── scripts/
 │   └── docker.sh           # Docker management script
 ├── docker/
-│   ├── docker-compose-dev.yaml  # Docker Compose configuration
-│   └── nginx/
-│       ├── nginx.conf      # Nginx config for Docker
-│       └── nginx.local.conf # Nginx config for local dev
+│   ├── docker-compose-dev.yaml  # Docker dev (Gateway + optional provisioner)
+│   └── docker-compose.yaml      # Docker production stack
 ├── backend/                 # Backend application
-│   ├── src/
-│   │   ├── gateway/        # Gateway API and LangGraph-compatible runtime (port 8001)
-│   │   ├── agents/         # LangGraph agent runtime used by Gateway
-│   │   ├── mcp/            # Model Context Protocol integration
-│   │   ├── skills/         # Skills system
-│   │   └── sandbox/        # Sandbox execution
+│   ├── app/gateway/        # FastAPI Gateway (port 8001)
+│   ├── packages/harness/   # deerflow agent runtime package
 │   ├── docs/               # Backend documentation
-│   └── Makefile            # Backend commands
-├── frontend/               # Frontend application
-│   └── Makefile            # Frontend commands
+│   └── Makefile            # Backend commands (make dev, make test)
 └── skills/                 # Agent skills
     ├── public/             # Public skills
     └── custom/             # Custom skills
@@ -247,11 +200,10 @@ deer-flow/
 ## Architecture
 
 ```
-Browser
+HTTP clients (CLI, SDK, external UI)
   ↓
-Nginx (port 2026) ← Unified entry point
-  ├→ Frontend (port 3000) ← / (non-API requests)
-  └→ Gateway API (port 8001) ← /api/* and /api/langgraph/* (LangGraph-compatible agent interactions)
+Gateway API (port 8001) ← /api/* and LangGraph-compatible /api/langgraph/*
+  └→ Embedded agent runtime (lead agent, tools, sandbox, memory)
 ```
 
 ## Development Workflow
@@ -265,13 +217,8 @@ Nginx (port 2026) ← Unified entry point
 
 3. **Format and lint your code** (CI will reject unformatted code):
    ```bash
-   # Backend
    cd backend
    make format   # ruff check --fix + ruff format
-
-   # Frontend
-   cd frontend
-   pnpm format:write   # Prettier
    ```
 
 4. **Test your changes** thoroughly
@@ -290,31 +237,20 @@ Nginx (port 2026) ← Unified entry point
 ## Testing
 
 ```bash
-# Backend tests
 cd backend
 make test
-
-# Frontend unit tests
-cd frontend
-make test
-
-# Frontend E2E tests (requires Chromium; builds and auto-starts the Next.js production server)
-cd frontend
-make test-e2e
 ```
 
 ### PR Regression Checks
 
-Every pull request triggers the following CI workflows:
+Every pull request triggers:
 
 - **Backend unit tests** — [.github/workflows/backend-unit-tests.yml](.github/workflows/backend-unit-tests.yml)
-- **Frontend unit tests** — [.github/workflows/frontend-unit-tests.yml](.github/workflows/frontend-unit-tests.yml)
-- **Frontend E2E tests** — [.github/workflows/e2e-tests.yml](.github/workflows/e2e-tests.yml) (triggered only when `frontend/` files change)
+- **Lint check** — [.github/workflows/lint-check.yml](.github/workflows/lint-check.yml) (backend `ruff` only)
 
 ## Code Style
 
 - **Backend (Python)**: We use `ruff` for linting and formatting. Run `make format` before committing.
-- **Frontend (TypeScript)**: We use ESLint and Prettier. Run `pnpm format:write` before committing.
 - CI enforces formatting — PRs with unformatted code will fail the lint check.
 
 ## Documentation

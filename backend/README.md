@@ -7,14 +7,6 @@ DeerFlow is a LangGraph-based AI super agent with sandbox execution, persistent 
 ## Architecture
 
 ```
-                        ┌──────────────────────────────────────┐
-                        │          Nginx (Port 2026)           │
-                        │      Unified reverse proxy           │
-                        └───────┬──────────────────┬───────────┘
-                                │
-            /api/langgraph/*    │    /api/* (other)
-            rewritten to /api/* │
-                                ▼
                ┌────────────────────────────────────────┐
                │        Gateway API (8001)              │
                │        FastAPI REST + agent runtime    │
@@ -29,10 +21,15 @@ DeerFlow is a LangGraph-based AI super agent with sandbox execution, persistent 
                └────────────────────────────────────────┘
 ```
 
-**Request Routing** (via Nginx):
-- `/api/langgraph/*` → Gateway LangGraph-compatible API - agent interactions, threads, streaming
-- `/api/*` (other) → Gateway API - models, MCP, skills, memory, artifacts, uploads, thread-local cleanup
-- `/` (non-API) → Frontend - Next.js web interface
+**Default access** (this fork): connect clients directly to Gateway on port **8001**.
+
+**API surface**:
+- `/api/langgraph/*` — LangGraph-compatible agent runtime (threads, runs, streaming)
+- `/api/*` — REST APIs (models, MCP, skills, memory, artifacts, uploads, thread cleanup)
+- `GET /health` — health check
+- `/docs` — OpenAPI (disable in production with `GATEWAY_ENABLE_DOCS=false`)
+
+Optional: place nginx or another reverse proxy in front of Gateway for TLS or unified hostnames.
 
 ---
 
@@ -107,7 +104,7 @@ LLM-powered persistent context retention across conversations:
 
 ### Gateway API
 
-FastAPI application providing REST endpoints for frontend integration:
+FastAPI application providing REST and LangGraph-compatible endpoints:
 
 | Route | Purpose |
 |-------|---------|
@@ -185,22 +182,19 @@ export OPENAI_API_KEY="your-api-key-here"
 
 ### Running
 
-**Full Application** (from project root):
+**From backend directory** (recommended):
 
 ```bash
-make dev  # Starts Gateway + Frontend + Nginx
+make dev   # Gateway with hot-reload → http://localhost:8001
+make gateway  # Gateway without reload
 ```
 
-Access at: http://localhost:2026
-
-**Backend Only** (from backend directory):
+**From repository root** (Git Bash / macOS / Linux):
 
 ```bash
-# Gateway API + embedded agent runtime
-make dev
+make install   # uv sync + pre-commit (first time)
+make dev       # same Gateway as above via scripts/serve.sh
 ```
-
-Direct access: Gateway at http://localhost:8001
 
 ---
 

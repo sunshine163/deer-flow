@@ -246,7 +246,7 @@ make down   # 停止并移除
 ```
 
 > [!NOTE]
-> 默认 `docker-compose` 可能包含 Web 前端与 Nginx。若仓库已移除 `frontend/`，请只构建/运行 **gateway** 服务，或自行调整 Compose。IM 渠道在 Compose 内跑在 gateway 容器中时，`channels.langgraph_url` / `gateway_url` 勿指向 `localhost`，应使用 `http://gateway:8001/api` 与 `http://gateway:8001`。
+> 本仓库的 `docker-compose*.yaml` 仅包含 **gateway**（及可选 **provisioner**），Gateway 直接映射 `8001`。IM 渠道在 Compose 内跑在 gateway 容器中时，`channels.langgraph_url` / `gateway_url` 勿指向 `localhost`，应使用 `http://gateway:8001/api` 与 `http://gateway:8001`。
 
 更完整的 Docker 说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
@@ -291,7 +291,7 @@ Windows 请在 **Git Bash** 中操作；`cmd.exe` / PowerShell 不支持根目�
    | 首次创建管理员 | http://localhost:8001/setup |
    | LangGraph 兼容 API 基址 | http://localhost:8001/api |
 
-> 根目录 `make install` / `make dev` 会安装并启动 **前端 + Nginx**。本仓库若已移除 `frontend/`，请仅使用 `backend/Makefile`。
+> 根目录 `make install` / `make dev` 与 `cd backend && make dev` 等价，均只安装/启动 **Gateway**（`http://localhost:8001`）。Windows 上请用 **Git Bash** 执行根目录 bash 脚本目标。
 
 #### 启动模式对照
 
