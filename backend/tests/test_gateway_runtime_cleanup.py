@@ -65,10 +65,7 @@ def test_gateway_cors_configuration_uses_gateway_allowlist():
     assert "GATEWAY_CORS_ORIGINS" in csrf_middleware
 
 
-def test_frontend_rewrites_langgraph_prefix_to_gateway():
-    next_config = _read("frontend/next.config.js")
-    api_client = _read("frontend/src/core/api/api-client.ts")
-
-    assert "DEER_FLOW_INTERNAL_LANGGRAPH_BASE_URL" not in next_config
-    assert "http://127.0.0.1:2024" not in next_config
-    assert "langgraph-compat" not in api_client
+def test_frontend_directory_removed_from_repo():
+    """This fork ships Gateway-only; do not reintroduce a bundled frontend tree."""
+    frontend_root = REPO_ROOT / "frontend"
+    assert not frontend_root.exists(), "frontend/ should not exist in this backend-only fork; use an external client against http://localhost:8001"
