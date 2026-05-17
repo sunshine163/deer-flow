@@ -1,3 +1,6 @@
+# Backend-only: do not track upstream frontend tree
+frontend/
+
 # DeerFlow docker image cache
 docker/.cache/
 # oh-my-claudecode state
