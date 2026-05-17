@@ -65,7 +65,7 @@ install:
 	@echo "Installing backend dependencies..."
 	@cd backend && uv sync
 	@echo "Installing pre-commit hooks..."
-	@$(BACKEND_UV_RUN) --with pre-commit pre-commit install
+	@$(BACKEND_UV_RUN) pre-commit install
 	@echo "✓ Backend dependencies installed"
 	@echo ""
 	@echo "=========================================="
