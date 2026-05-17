@@ -118,13 +118,6 @@ def main() -> int:
             write_env_file(env_path, env_pairs)
             print_success(f"API keys written to: {env_path.relative_to(project_root)}")
 
-        frontend_env = project_root / "frontend" / ".env"
-        frontend_env_example = project_root / "frontend" / ".env.example"
-        if not frontend_env.exists() and frontend_env_example.exists():
-            import shutil
-            shutil.copyfile(frontend_env_example, frontend_env)
-            print_success("frontend/.env created from example")
-
         print_header("Setup complete!")
         print(f"  {green('✓')} LLM:        {llm.provider.display_name} / {llm.model_name}")
         if search_provider:
@@ -150,8 +143,8 @@ def main() -> int:
             print(f"  {'—':>3} File write: disabled")
         print()
         print("Next steps:")
-        print(f"  {cyan('make install')}    # Install dependencies (first time only)")
-        print(f"  {cyan('make dev')}        # Start DeerFlow")
+        print(f"  {cyan('make install')}         # Install dependencies (first time only)")
+        print(f"  {cyan('cd backend && make dev')}  # Start Gateway → http://localhost:8001")
         print()
         print(f"Run {cyan('make doctor')} to verify your setup at any time.")
         print()

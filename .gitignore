@@ -55,3 +55,5 @@ backend/Dockerfile.langgraph
 config.yaml.bak
 .gstack/
 .worktrees
+
+.cursor

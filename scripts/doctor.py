@@ -69,11 +69,6 @@ def _run(cmd: list[str]) -> str | None:
         return None
 
 
-def _parse_major(version_text: str) -> int | None:
-    v = version_text.lstrip("v").split(".", 1)[0]
-    return int(v) if v.isdigit() else None
-
-
 def _load_yaml_file(path: Path) -> dict:
     import yaml
 
@@ -142,41 +137,6 @@ def check_python() -> CheckResult:
     )
 
 
-def check_node() -> CheckResult:
-    node = shutil.which("node")
-    if not node:
-        return CheckResult(
-            "Node.js",
-            "fail",
-            fix="Install Node.js 22+: https://nodejs.org/",
-        )
-    out = _run(["node", "-v"]) or ""
-    major = _parse_major(out)
-    if major is None or major < 22:
-        return CheckResult(
-            "Node.js",
-            "fail",
-            out or "unknown version",
-            fix="Node.js 22+ required. Install from https://nodejs.org/",
-        )
-    return CheckResult("Node.js", "ok", out.lstrip("v"))
-
-
-def check_pnpm() -> CheckResult:
-    candidates = [["pnpm"], ["pnpm.cmd"]]
-    if shutil.which("corepack"):
-        candidates.append(["corepack", "pnpm"])
-    for cmd in candidates:
-        if shutil.which(cmd[0]):
-            out = _run([*cmd, "-v"]) or ""
-            return CheckResult("pnpm", "ok", out)
-    return CheckResult(
-        "pnpm",
-        "fail",
-        fix="npm install -g pnpm   (or: corepack enable)",
-    )
-
-
 def check_uv() -> CheckResult:
     if not shutil.which("uv"):
         return CheckResult(
@@ -188,22 +148,6 @@ def check_uv() -> CheckResult:
     parts = out.split()
     version = parts[1] if len(parts) > 1 else out
     return CheckResult("uv", "ok", version)
-
-
-def check_nginx() -> CheckResult:
-    if shutil.which("nginx"):
-        out = _run(["nginx", "-v"]) or ""
-        version = out.split("/", 1)[-1] if "/" in out else out
-        return CheckResult("nginx", "ok", version)
-    return CheckResult(
-        "nginx",
-        "fail",
-        fix=(
-            "macOS:   brew install nginx\n"
-            "Ubuntu:  sudo apt install nginx\n"
-            "Windows: use WSL or Docker mode"
-        ),
-    )
 
 
 def check_config_exists(config_path: Path) -> CheckResult:
@@ -532,17 +476,6 @@ def check_web_fetch(config_path: Path) -> CheckResult:
     return check_web_tool(config_path, tool_name="web_fetch", label="web fetch configured")
 
 
-def check_frontend_env(project_root: Path) -> CheckResult:
-    env_path = project_root / "frontend" / ".env"
-    if env_path.exists():
-        return CheckResult("frontend/.env found", "ok")
-    return CheckResult(
-        "frontend/.env found",
-        "warn",
-        fix="Run 'make setup' or copy frontend/.env.example to frontend/.env",
-    )
-
-
 def check_sandbox(config_path: Path) -> list[CheckResult]:
     if not config_path.exists():
         return [CheckResult("sandbox configured", "skip")]
@@ -652,17 +585,13 @@ def main() -> int:
     # ── System Requirements ────────────────────────────────────────────────────
     sys_checks = [
         check_python(),
-        check_node(),
-        check_pnpm(),
         check_uv(),
-        check_nginx(),
     ]
     sections.append(("System Requirements", sys_checks))
 
     # ── Configuration ─────────────────────────────────────────────────────────
     cfg_checks: list[CheckResult] = [
         check_env_file(project_root),
-        check_frontend_env(project_root),
         check_config_exists(config_path),
         check_config_version(config_path, project_root),
         check_config_loadable(config_path),
@@ -705,10 +634,10 @@ def main() -> int:
     print("═" * 40)
     if total_fails == 0 and total_warns == 0:
         print(f"Status: {green('Ready')}")
-        print(f"Run {cyan('make dev')} to start DeerFlow")
+        print(f"Run {cyan('cd backend && make dev')} or {cyan('make dev')} to start the Gateway")
     elif total_fails == 0:
         print(f"Status: {yellow(f'Ready ({total_warns} warning(s))')}")
-        print(f"Run {cyan('make dev')} to start DeerFlow")
+        print(f"Run {cyan('cd backend && make dev')} or {cyan('make dev')} to start the Gateway")
     else:
         print(f"Status: {red(f'{total_fails} error(s), {total_warns} warning(s)')}")
         print("Fix the errors above, then run 'make doctor' again.")

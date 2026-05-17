@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# start-daemon.sh — Start DeerFlow in daemon (background) mode
+# start-daemon.sh — Start DeerFlow Gateway in daemon (background) mode
 #
-# Thin wrapper around serve.sh --daemon.
+# Thin wrapper around serve.sh --daemon (backend only).
 # Kept for backward compatibility.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

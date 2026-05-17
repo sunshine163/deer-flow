@@ -108,25 +108,6 @@ else
 fi
 
 
-# ── BETTER_AUTH_SECRET ───────────────────────────────────────────────────────
-# Required by Next.js in production. Generated once and persisted so auth
-# sessions survive container restarts.
-
-_secret_file="$DEER_FLOW_HOME/.better-auth-secret"
-if [ -z "$BETTER_AUTH_SECRET" ]; then
-    if [ -f "$_secret_file" ]; then
-        export BETTER_AUTH_SECRET
-        BETTER_AUTH_SECRET="$(cat "$_secret_file")"
-        echo -e "${GREEN}✓ BETTER_AUTH_SECRET loaded from $_secret_file${NC}"
-    else
-        export BETTER_AUTH_SECRET
-        BETTER_AUTH_SECRET="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
-        echo "$BETTER_AUTH_SECRET" > "$_secret_file"
-        chmod 600 "$_secret_file"
-        echo -e "${GREEN}✓ BETTER_AUTH_SECRET generated → $_secret_file${NC}"
-    fi
-fi
-
 # ── detect_sandbox_mode ───────────────────────────────────────────────────────
 
 detect_sandbox_mode() {
@@ -172,7 +153,6 @@ if [ "$CMD" = "down" ]; then
     export DEER_FLOW_EXTENSIONS_CONFIG_PATH="${DEER_FLOW_EXTENSIONS_CONFIG_PATH:-$DEER_FLOW_HOME/extensions_config.json}"
     export DEER_FLOW_DOCKER_SOCKET="${DEER_FLOW_DOCKER_SOCKET:-/var/run/docker.sock}"
     export DEER_FLOW_REPO_ROOT="${DEER_FLOW_REPO_ROOT:-$REPO_ROOT}"
-    export BETTER_AUTH_SECRET="${BETTER_AUTH_SECRET:-placeholder}"
     "${COMPOSE_CMD[@]}" down
     exit 0
 fi
@@ -218,7 +198,7 @@ echo -e "${BLUE}Sandbox mode: $sandbox_mode${NC}"
 
 echo -e "${BLUE}Runtime: Gateway embedded agent runtime${NC}"
 
-services="frontend gateway nginx"
+services="gateway"
 
 if [ "$sandbox_mode" = "provisioner" ]; then
     services="$services provisioner"
@@ -262,10 +242,8 @@ echo "=========================================="
 echo "  DeerFlow is running!"
 echo "=========================================="
 echo ""
-echo "  🌐 Application: http://localhost:${PORT:-2026}"
-echo "  📡 API Gateway: http://localhost:${PORT:-2026}/api/*"
-echo "  🤖 Runtime:     Gateway embedded"
-echo "  API:            /api/langgraph/* → Gateway"
+echo "  📡 Gateway:     port 8001 (embedded agent runtime + REST API)"
+echo "  API prefix:    /api/* and /api/langgraph/*"
 echo ""
 echo "  Manage:"
 echo "    make down        — stop and remove containers"

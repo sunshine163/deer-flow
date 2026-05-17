@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 #
-# serve.sh — Unified DeerFlow service launcher
+# serve.sh — DeerFlow Gateway launcher (backend only)
 #
 # Usage:
 #   ./scripts/serve.sh [--dev|--prod] [--daemon] [--stop|--restart]
 #
 # Modes:
 #   --dev       Development mode with hot-reload (default)
-#   --prod      Production mode, pre-built frontend, no hot-reload
-#   --daemon    Run all services in background (nohup), exit after startup
+#   --prod      Production mode, no hot-reload
+#   --daemon    Run Gateway in background (nohup), exit after startup
 #
 # Actions:
 #   --skip-install  Skip dependency installation (faster restart)
-#   --stop      Stop all running services and exit
-#   --restart   Stop all services, then start with the given mode flags
+#   --stop      Stop the Gateway and exit
+#   --restart   Stop the Gateway, then start with the given mode flags
 #
 # Examples:
 #   ./scripts/serve.sh --dev                 # Gateway dev, hot reload
 #   ./scripts/serve.sh --prod                # Gateway prod
 #   ./scripts/serve.sh --dev --daemon        # Gateway dev, background
-#   ./scripts/serve.sh --stop                # Stop all services
-#   ./scripts/serve.sh --restart --dev       # Restart dev services
+#   ./scripts/serve.sh --stop                # Stop Gateway
+#   ./scripts/serve.sh --restart --dev       # Restart dev Gateway
 #
 # Must be run from the repo root directory.
 
@@ -72,19 +72,11 @@ _kill_port() {
 }
 
 stop_all() {
-    echo "Stopping all services..."
+    echo "Stopping Gateway..."
     pkill -f "uvicorn app.gateway.app:app" 2>/dev/null || true
-    pkill -f "next dev" 2>/dev/null || true
-    pkill -f "next start" 2>/dev/null || true
-    pkill -f "next-server" 2>/dev/null || true
-    nginx -c "$REPO_ROOT/docker/nginx/nginx.local.conf" -p "$REPO_ROOT" -s quit 2>/dev/null || true
-    sleep 1
-    pkill -9 nginx 2>/dev/null || true
-    # Force-kill any survivors still holding the service ports
     _kill_port 8001
-    _kill_port 3000
     ./scripts/cleanup-containers.sh deer-flow-sandbox 2>/dev/null || true
-    echo "✓ All services stopped"
+    echo "✓ Gateway stopped"
 }
 
 # ── Action routing ───────────────────────────────────────────────────────────
@@ -103,28 +95,13 @@ fi
 
 # Mode label for banner
 if $DEV_MODE; then
-    MODE_LABEL="DEV (Gateway runtime, hot-reload enabled)"
+    MODE_LABEL="DEV (Gateway, hot-reload enabled)"
 else
-    MODE_LABEL="PROD (Gateway runtime, optimized)"
+    MODE_LABEL="PROD (Gateway, optimized)"
 fi
 
 if $DAEMON_MODE; then
     MODE_LABEL="$MODE_LABEL [daemon]"
-fi
-
-# Frontend command
-if $DEV_MODE; then
-    FRONTEND_CMD="pnpm run dev"
-else
-    if command -v python3 >/dev/null 2>&1; then
-        PYTHON_BIN="python3"
-    elif command -v python >/dev/null 2>&1; then
-        PYTHON_BIN="python"
-    else
-        echo "Python is required to generate BETTER_AUTH_SECRET."
-        exit 1
-    fi
-    FRONTEND_CMD="env BETTER_AUTH_SECRET=$($PYTHON_BIN -c 'import secrets; print(secrets.token_hex(16))') pnpm run preview"
 fi
 
 # Extra flags for uvicorn
@@ -134,7 +111,7 @@ else
     GATEWAY_EXTRA_FLAGS=""
 fi
 
-# ── Stop existing services (skip if restart already did it) ──────────────────
+# ── Stop existing Gateway (skip if restart already did it) ───────────────────
 
 if ! $ALREADY_STOPPED; then
     stop_all
@@ -184,7 +161,7 @@ if [ -n "$DETECT_PYTHON" ]; then
 fi
 
 if ! $SKIP_INSTALL; then
-    echo "Syncing dependencies..."
+    echo "Syncing backend dependencies..."
     if [ -n "$UV_EXTRAS_FLAGS" ]; then
         echo "  • uv extras: $UV_EXTRAS_FLAGS"
     fi
@@ -192,7 +169,6 @@ if ! $SKIP_INSTALL; then
     # in particular). Required for postgres extras — see PR #2584.
     # Intentionally unquoted to splat multiple `--extra X` pairs.
     (cd backend && uv sync --quiet --all-packages $UV_EXTRAS_FLAGS) || { echo "✗ Backend dependency install failed"; exit 1; }
-    (cd frontend && pnpm install --silent) || { echo "✗ Frontend dependency install failed"; exit 1; }
     echo "✓ Dependencies synced"
 else
     echo "⏩ Skipping dependency install (--skip-install)"
@@ -202,15 +178,13 @@ fi
 
 echo ""
 echo "=========================================="
-echo "  Starting DeerFlow"
+echo "  Starting DeerFlow Gateway"
 echo "=========================================="
 echo ""
 echo "  Mode: $MODE_LABEL"
 echo ""
-echo "  Services:"
-echo "    Gateway     → localhost:8001  (REST API + agent runtime)"
-echo "    Frontend    → localhost:3000  (Next.js)"
-echo "    Nginx       → localhost:2026  (reverse proxy)"
+echo "  Service:"
+echo "    Gateway     → http://localhost:8001  (REST API + agent runtime)"
 echo ""
 
 # ── Cleanup handler ──────────────────────────────────────────────────────────
@@ -247,47 +221,34 @@ run_service() {
     echo "✓ $name started on localhost:$port"
 }
 
-# ── Start services ───────────────────────────────────────────────────────────
+# ── Start Gateway ────────────────────────────────────────────────────────────
 
 mkdir -p logs
-mkdir -p temp/client_body_temp temp/proxy_temp temp/fastcgi_temp temp/uwsgi_temp temp/scgi_temp
 
-# 1. Gateway API
 run_service "Gateway" \
     "cd backend && PYTHONPATH=. uv run uvicorn app.gateway.app:app --host 0.0.0.0 --port 8001 $GATEWAY_EXTRA_FLAGS > ../logs/gateway.log 2>&1" \
     8001 30
-
-# 2. Frontend
-run_service "Frontend" \
-    "cd frontend && $FRONTEND_CMD > ../logs/frontend.log 2>&1" \
-    3000 120
-
-# 3. Nginx
-run_service "Nginx" \
-    "nginx -g 'daemon off;' -c '$REPO_ROOT/docker/nginx/nginx.local.conf' -p '$REPO_ROOT' > logs/nginx.log 2>&1" \
-    2026 10
 
 # ── Ready ────────────────────────────────────────────────────────────────────
 
 echo ""
 echo "=========================================="
-echo "  ✓ DeerFlow is running!  [$MODE_LABEL]"
+echo "  ✓ DeerFlow Gateway is running!  [$MODE_LABEL]"
 echo "=========================================="
 echo ""
-echo "  🌐 http://localhost:2026"
+echo "  🌐 http://localhost:8001"
 echo ""
-echo "  Routing: Frontend → Nginx → Gateway"
-echo "  API:     /api/langgraph/*  →  Gateway agent runtime"
-echo "           /api/*              →  Gateway REST API (8001)"
+echo "  Health:  GET /health"
+echo "  API:     /api/langgraph/*  →  agent runtime"
+echo "           /api/*              →  REST API"
 echo ""
-echo "  📋 Logs: logs/{gateway,frontend,nginx}.log"
+echo "  📋 Logs: logs/gateway.log"
 echo ""
 
 if $DAEMON_MODE; then
     echo "  🛑 Stop: make stop"
-    # Detach — trap is no longer needed
     trap - INT TERM
 else
-    echo "  Press Ctrl+C to stop all services"
+    echo "  Press Ctrl+C to stop the Gateway"
     wait
 fi

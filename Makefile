@@ -22,7 +22,7 @@ help:
 	@echo "  make doctor          - Check configuration and system requirements"
 	@echo "  make config          - Generate local config files (aborts if config already exists)"
 	@echo "  make config-upgrade  - Merge new fields from config.example.yaml into config.yaml"
-	@echo "  make check           - Check if all required tools are installed"
+	@echo "  make check           - Check backend tools (uv)"
 	@echo "  make install         - Install backend dependencies (uv sync + pre-commit hooks)"
 	@echo "  make setup-sandbox   - Pre-pull sandbox container image (recommended)"
 	@echo "  make dev             - Start backend services in development mode (with hot-reloading)"
@@ -33,12 +33,12 @@ help:
 	@echo "  make clean           - Clean up backend processes and temporary files"
 	@echo ""
 	@echo "Docker Production Commands (container stack via deploy.sh):"
-	@echo "  make up              - Build and start production Docker stack (localhost:2026)"
+	@echo "  make up              - Build and start production Docker stack (gateway)"
 	@echo "  make down            - Stop and remove production Docker stack"
 	@echo ""
 	@echo "Docker Development Commands (container stack via docker.sh):"
 	@echo "  make docker-init     - Pull the sandbox image"
-	@echo "  make docker-start    - Start Docker container stack (mode-aware from config.yaml, localhost:2026)"
+	@echo "  make docker-start    - Start Docker container stack (gateway, from config.yaml)"
 	@echo "  make docker-stop     - Stop Docker container stack"
 	@echo "  make docker-logs     - View Docker container logs"
 	@echo "  make docker-logs-gateway - View Docker gateway logs"
@@ -56,7 +56,7 @@ config:
 config-upgrade:
 	@$(RUN_WITH_GIT_BASH) ./scripts/config-upgrade.sh
 
-# Check required tools
+# Check backend tools (uv)
 check:
 	@$(PYTHON) ./scripts/check.py
 

@@ -165,9 +165,9 @@ start() {
 
     sandbox_mode="$(detect_sandbox_mode)"
 
-    services="frontend gateway nginx"
+    services="gateway"
     if [ "$sandbox_mode" = "provisioner" ]; then
-        services="frontend gateway provisioner nginx"
+        services="gateway provisioner"
     fi
 
     echo -e "${BLUE}Runtime: Gateway embedded agent runtime${NC}"
@@ -227,10 +227,8 @@ start() {
     echo "  DeerFlow Docker is starting!"
     echo "=========================================="
     echo ""
-    echo "  🌐 Application: http://localhost:2026"
-    echo "  📡 API Gateway: http://localhost:2026/api/*"
-    echo "  🤖 Runtime:     Gateway embedded"
-    echo "  API:            /api/langgraph/* → Gateway"
+    echo "  📡 Gateway:     port 8001 (agent runtime + REST API)"
+    echo "  API prefix:    /api/* and /api/langgraph/*"
     echo ""
     echo "  📋 View logs: make docker-logs"
     echo "  🛑 Stop:      make docker-stop"
@@ -242,17 +240,9 @@ logs() {
     local service=""
     
     case "$1" in
-        --frontend)
-            service="frontend"
-            echo -e "${BLUE}Viewing frontend logs...${NC}"
-            ;;
         --gateway)
             service="gateway"
             echo -e "${BLUE}Viewing gateway logs...${NC}"
-            ;;
-        --nginx)
-            service="nginx"
-            echo -e "${BLUE}Viewing nginx logs...${NC}"
             ;;
         --provisioner)
             service="provisioner"
@@ -263,7 +253,7 @@ logs() {
             ;;
         *)
             echo -e "${YELLOW}Unknown option: $1${NC}"
-            echo "Usage: $0 logs [--frontend|--gateway|--nginx|--provisioner]"
+            echo "Usage: $0 logs [--gateway|--provisioner]"
             exit 1
             ;;
     esac
@@ -296,7 +286,7 @@ restart() {
     echo ""
     echo -e "${GREEN}✓ Docker services restarted${NC}"
     echo ""
-    echo "  🌐 Application: http://localhost:2026"
+    echo "  📡 Gateway: container port 8001"
     echo "  📋 View logs: make docker-logs"
     echo ""
 }
@@ -312,9 +302,7 @@ help() {
     echo "  start             - Start Docker services (auto-detects sandbox mode from config.yaml)"
     echo "  restart           - Restart all running Docker services"
     echo "  logs [option] - View Docker development logs"
-    echo "                  --frontend   View frontend logs only"
-    echo "                  --gateway    View gateway logs only"
-    echo "                  --nginx      View nginx logs only"
+    echo "                  --gateway     View gateway logs only"
     echo "                  --provisioner View provisioner logs only"
     echo "  stop          - Stop Docker development services"
     echo "  help          - Show this help message"
