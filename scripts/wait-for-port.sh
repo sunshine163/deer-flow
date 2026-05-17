@@ -34,7 +34,13 @@ is_port_listening() {
     fi
 
     if command -v netstat >/dev/null 2>&1; then
+        # Linux / macOS: netstat -ltn, local address in column 4 (e.g. 0.0.0.0:8001)
         if netstat -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "(^|[.:])${PORT}$"; then
+            return 0
+        fi
+        # Windows (Git Bash): netstat -ltn prints help; use -an + LISTENING instead
+        # e.g. "TCP  0.0.0.0:8001  0.0.0.0:0  LISTENING"
+        if netstat -an 2>/dev/null | grep -E "[:.]${PORT}[[:space:]]+.*LISTENING" >/dev/null 2>&1; then
             return 0
         fi
     fi

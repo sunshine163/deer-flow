@@ -225,9 +225,15 @@ run_service() {
 
 mkdir -p logs
 
+# Windows cold start (uvicorn --reload + heavy imports) often needs >30s
+GATEWAY_START_TIMEOUT=30
+case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) GATEWAY_START_TIMEOUT=60 ;;
+esac
+
 run_service "Gateway" \
     "cd backend && PYTHONPATH=. uv run uvicorn app.gateway.app:app --host 0.0.0.0 --port 8001 $GATEWAY_EXTRA_FLAGS > ../logs/gateway.log 2>&1" \
-    8001 30
+    8001 "$GATEWAY_START_TIMEOUT"
 
 # ── Ready ────────────────────────────────────────────────────────────────────
 
