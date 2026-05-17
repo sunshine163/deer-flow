@@ -45,18 +45,10 @@ debug.log
 # Local git hooks (keep only on this machine, do not push)
 .githooks/
 
-# pnpm
-.pnpm-store
 sandbox_image_cache.tar
-
-# ignore the legacy `web` folder
-web/
 
 # Deployment artifacts
 backend/Dockerfile.langgraph
 config.yaml.bak
-.playwright-mcp
-/frontend/test-results/
-/frontend/playwright-report/
 .gstack/
 .worktrees
